@@ -146,7 +146,7 @@ function renderAnalysis(results, bestLag, year, month) {
         <strong>${conclusion} nổi bật tại độ trễ ${lagText} ngày</strong>
         <p>Trong ${MONTH_NAMES[month - 1].toLowerCase()} năm ${year}, độ trễ này có ${bestLag.samePercent.toFixed(1)}% cặp biến động đồng pha và ${bestLag.oppositePercent.toFixed(1)}% cặp biến động nghịch pha.</p>
       </div>
-      <p class="method-note">Quy ước: với độ trễ <strong>+N</strong>, biến động chây đờ tại ngày D được so với biến động BTC tại ngày D+N. Cùng tăng hoặc cùng giảm là đồng pha; một tăng một giảm là nghịch pha.</p>
+      <p class="method-note">Quy ước: với độ trễ <strong>là do mình tự đặt</strong>.</p>
     </div>
     <table>
       <thead>
