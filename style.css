@@ -1,0 +1,274 @@
+:root {
+  color-scheme: light;
+  --ink: #151515;
+  --muted: #6d6d6d;
+  --line: #d8d8d8;
+  --soft: #f4f4f2;
+  --paper: #ffffff;
+  --page: #ededeb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.shell {
+  width: min(1220px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 52px 0 28px;
+}
+
+.hero {
+  border-top: 5px solid var(--ink);
+  padding: 22px 0 28px;
+}
+
+.eyebrow {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(38px, 6vw, 68px);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.subtitle,
+.range-note,
+footer {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.card {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.035);
+}
+
+.toolbar {
+  display: flex;
+  align-items: end;
+  gap: 18px;
+  padding: 18px 20px;
+}
+
+label span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+select {
+  min-width: 132px;
+  border: 1px solid #b9b9b9;
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  padding: 10px 34px 10px 12px;
+}
+
+.range-note {
+  margin: 0 0 9px auto;
+  font-size: 13px;
+  text-align: right;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.metric {
+  min-height: 124px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 18px;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.metric-value {
+  display: block;
+  margin-top: 16px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 38px;
+  line-height: 1;
+}
+
+.metric-note {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chart-card,
+.analysis-card {
+  padding: 20px;
+}
+
+.section-heading {
+  margin-bottom: 20px;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 280px;
+}
+
+.chart-wrap-large {
+  height: 360px;
+}
+
+.analysis-intro {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.analysis-callout {
+  border-left: 4px solid var(--ink);
+  background: var(--soft);
+  padding: 14px 16px;
+}
+
+.analysis-callout strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 19px;
+}
+
+.analysis-callout p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 9px;
+  text-align: right;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+thead th {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+tr.is-best {
+  background: var(--soft);
+  font-weight: 700;
+}
+
+.method-note {
+  margin: 15px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+footer {
+  padding: 17px 2px 0;
+  font-size: 12px;
+}
+
+@media (max-width: 800px) {
+  .shell {
+    width: min(100% - 20px, 720px);
+    padding-top: 26px;
+  }
+
+  .toolbar,
+  .analysis-intro {
+    display: block;
+  }
+
+  .toolbar label {
+    display: inline-block;
+    margin: 0 10px 14px 0;
+  }
+
+  .range-note {
+    text-align: left;
+  }
+
+  .summary-grid,
+  .chart-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .summary-grid,
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-wrap,
+  .chart-wrap-large {
+    height: 260px;
+  }
+}
