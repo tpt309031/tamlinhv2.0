@@ -113,9 +113,9 @@ function renderLineChart(name, canvasId, labels, datasets, yTitle) {
 
 function renderSummary(meValues, btcValues, bestLag, recordCount) {
   const cards = [
-    ["Số ngày trong tháng", recordCount, "Ghép theo ngày ISO thực tế"],
-    ["Trung bình chây đờ", average(meValues).toFixed(1), "Nguồn index_me.csv"],
-    ["Trung bình BTC", average(btcValues).toFixed(1), "Nguồn index_btc.csv"],
+    ["Số ngày trong tháng", recordCount, "theo data load được thực tế"],
+    ["Trung bình chây đờ", average(meValues).toFixed(1), "tài thì chơi mạnh"],
+    ["Trung bình BTC", average(btcValues).toFixed(1), "xỉu thì chơi ít lại"],
     ["Độ trễ nổi bật", `${bestLag.lag > 0 ? "+" : ""}${bestLag.lag} ngày`, `${bestLag.samePercent.toFixed(1)}% đồng pha`],
   ];
   document.getElementById("summary").innerHTML = cards.map(([label, value, note]) => `
@@ -160,7 +160,7 @@ function renderAnalysis(results, bestLag, year, month) {
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    <p class="method-note">Dòng nổi bật được chọn theo tỷ lệ đồng pha cao nhất; nếu bằng nhau, ưu tiên nhiều cặp có hướng hơn rồi ưu tiên độ trễ gần 0 hơn. Biến động ngày đầu tháng vẫn dùng ngày liền trước trên dòng thời gian đầy đủ, kể cả khi nằm ở tháng hoặc năm trước.</p>
+    <p class="method-note">Được chọn theo tỷ lệ cao nhất.</p>
   `;
 }
 
@@ -172,7 +172,7 @@ function loadData() {
   const btcMonth = DASHBOARD_DATA.series.btc.filter((item) => item.date.startsWith(monthPrefix));
 
   if (!meMonth.length || meMonth.length !== btcMonth.length) {
-    document.getElementById("analysis").innerHTML = "<p>Không có đủ dữ liệu khớp ngày cho tháng đã chọn.</p>";
+    document.getElementById("analysis").innerHTML = "<p>Không có đủ dữ liệu.</p>";
     return;
   }
 
@@ -220,7 +220,7 @@ function loadData() {
 
 function initialize() {
   if (typeof DASHBOARD_DATA === "undefined" || !DASHBOARD_DATA.series?.me || !DASHBOARD_DATA.series?.btc) {
-    document.getElementById("analysis").innerHTML = "<p>Không tải được data.js.</p>";
+    document.getElementById("analysis").innerHTML = "<p>Không tải được data</p>";
     return;
   }
 
@@ -232,7 +232,7 @@ function initialize() {
   yearSelect.addEventListener("change", loadData);
   document.getElementById("month").addEventListener("change", loadData);
   document.getElementById("dataSource").textContent =
-    `Nguồn: ${DASHBOARD_DATA.meta.sources.me} và ${DASHBOARD_DATA.meta.sources.btc} · ${DASHBOARD_DATA.meta.recordCount} ngày · ${DASHBOARD_DATA.meta.firstDate} đến ${DASHBOARD_DATA.meta.lastDate}`;
+    `Dữ liệu từ ngày · ${DASHBOARD_DATA.meta.firstDate} đến ${DASHBOARD_DATA.meta.lastDate}`;
   loadData();
 }
 
