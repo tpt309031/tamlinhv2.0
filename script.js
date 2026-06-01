@@ -184,14 +184,22 @@ function loadData() {
 
   renderLineChart("compare", "compareChart", labels, [
     lineDataset("Chây đờ", meValues, { color: "#141414" }),
-    lineDataset("BTC", btcValues, { color: "#777", dash: [7, 5] }),
+    lineDataset("BTC", btcValues, {
+  color: "#f7931a",
+  dash: [],
+  width: 3
+}),
   ], "Chỉ số");
   renderLineChart("me", "meChart", labels, [
     lineDataset("Chây đờ", meValues, { color: "#141414" }),
     lineDataset(`Trung bình ${meAverage.toFixed(1)}`, Array(labels.length).fill(meAverage), { color: "#999", dash: [5, 5], points: false, width: 1.5 }),
   ], "Chỉ số chây đờ");
   renderLineChart("btc", "btcChart", labels, [
-    lineDataset("BTC", btcValues, { color: "#333" }),
+   lineDataset("BTC", btcValues, {
+  color: "#f7931a",
+  dash: [],
+  width: 3
+}),
     lineDataset(`Trung bình ${btcAverage.toFixed(1)}`, Array(labels.length).fill(btcAverage), { color: "#999", dash: [5, 5], points: false, width: 1.5 }),
   ], "Chỉ số BTC");
 
