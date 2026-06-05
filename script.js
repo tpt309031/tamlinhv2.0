@@ -52,7 +52,8 @@ async function readCsvSeries(key, config) {
   const response = await fetch(config.file);
   if (!response.ok) throw new Error(`Không tải được ${config.file}`);
   const lines = (await response.text()).trim().split(/\r?\n/);
-  if (lines.shift() !== "date,score_percent") throw new Error(`${config.file}: header phải là date,score_percent`);
+  const header = lines.shift().replace(/^\uFEFF/, "");
+  if (header !== "date,score_percent") throw new Error(`${config.file}: header phải là date,score_percent`);
 
   const seen = new Set();
   const records = lines.map((line, index) => {
@@ -115,21 +116,21 @@ async function loadDashboardData() {
       me: {
         label: "Chây đờ",
         shortLabel: "CHÂY ĐỜ",
-        file: "data/index_me.csv",
+        file: "index_me.csv",
         color: "#141414",
         width: 2.2,
       },
       btc: {
         label: "BTC",
         shortLabel: "BTC",
-        file: "data/index_btc.csv",
+        file: "index_btc.csv",
         color: "#f7931a",
         width: 3,
       },
       wp: {
         label: "WP",
         shortLabel: "WP",
-        file: "data/index_wp.csv",
+        file: "index_wp.csv",
         color: "#8b0000",
         width: 3,
       },
