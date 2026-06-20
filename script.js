@@ -1,6 +1,11 @@
 let charts = {};
 let dashboardData = null;
 
+const CHART_JS_FALLBACK_URLS = [
+  "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js",
+  "https://unpkg.com/chart.js@4.4.7/dist/chart.umd.js",
+];
+
 const MONTH_NAMES = [
   "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
   "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12",
@@ -33,6 +38,75 @@ function direction(delta) {
 
 function pad(value) {
   return String(value).padStart(2, "0");
+}
+
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    const existingScript = document.querySelector(`script[src="${src}"]`);
+    if (existingScript?.dataset.loaded === "true") {
+      resolve();
+      return;
+    }
+    if (existingScript?.dataset.failed === "true") {
+      reject(new Error(`Không tải được ${src}`));
+      return;
+    }
+    if (existingScript) {
+      const timeoutId = setTimeout(() => reject(new Error(`Quá thời gian tải ${src}`)), 5000);
+      existingScript.addEventListener("load", () => {
+        clearTimeout(timeoutId);
+        resolve();
+      }, { once: true });
+      existingScript.addEventListener("error", () => {
+        clearTimeout(timeoutId);
+        existingScript.dataset.failed = "true";
+        reject(new Error(`Không tải được ${src}`));
+      }, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    const timeoutId = setTimeout(() => {
+      script.dataset.failed = "true";
+      reject(new Error(`Quá thời gian tải ${src}`));
+    }, 5000);
+    script.src = src;
+    script.async = true;
+    script.onload = () => {
+      clearTimeout(timeoutId);
+      script.dataset.loaded = "true";
+      resolve();
+    };
+    script.onerror = () => {
+      clearTimeout(timeoutId);
+      script.dataset.failed = "true";
+      reject(new Error(`Không tải được ${src}`));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureChartJs() {
+  if (typeof Chart !== "undefined") return;
+
+  let lastError = null;
+  for (const src of CHART_JS_FALLBACK_URLS) {
+    try {
+      await loadScriptOnce(src);
+      if (typeof Chart !== "undefined") return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new Error(`Không tải được Chart.js. ${lastError?.message || "Kiểm tra mạng/CDN rồi tải lại trang."}`);
+}
+
+function showRuntimeError(error) {
+  const message = error?.message || String(error);
+  const transitNote = document.getElementById("transitNote");
+  const analysis = document.getElementById("analysis");
+  if (transitNote) transitNote.textContent = `Không render được chart: ${message}`;
+  if (analysis) analysis.innerHTML = `<p>Không render được chart: ${message}</p>`;
 }
 
 function parseCsvDate(value, sourceName, lineNumber) {
@@ -153,7 +227,7 @@ async function loadDashboardData() {
     const series = {
       me: embeddedData.series.me,
       btc: embeddedData.series.btc,
-      wp: await loadWpSeries(config.sources.wp, embeddedData.series.btc),
+      wp: embeddedData.series.wp || await loadWpSeries(config.sources.wp, embeddedData.series.btc),
     };
     assertSameDateSet(series);
     const firstSeries = Object.values(series)[0];
@@ -439,53 +513,58 @@ function getMonthRecords(records, year, month) {
 }
 
 function loadData() {
-  const year = Number(document.getElementById("year").value);
-  const month = Number(document.getElementById("month").value);
-  const monthRecordsByKey = Object.fromEntries(
-    Object.entries(dashboardData.series).map(([key, records]) => [key, getMonthRecords(records, year, month)])
-  );
-  const firstMonthRecords = Object.values(monthRecordsByKey)[0];
+  try {
+    const year = Number(document.getElementById("year").value);
+    const month = Number(document.getElementById("month").value);
+    const monthRecordsByKey = Object.fromEntries(
+      Object.entries(dashboardData.series).map(([key, records]) => [key, getMonthRecords(records, year, month)])
+    );
+    const firstMonthRecords = Object.values(monthRecordsByKey)[0];
 
-  if (!firstMonthRecords.length || Object.values(monthRecordsByKey).some((records) => records.length !== firstMonthRecords.length)) {
-    document.getElementById("analysis").innerHTML = "<p>Không có đủ dữ liệu.</p>";
-    return;
+    renderTransitChart(getMonthRecords(dashboardData.transit, year, month), year, month);
+
+    if (!firstMonthRecords.length || Object.values(monthRecordsByKey).some((records) => records.length !== firstMonthRecords.length)) {
+      document.getElementById("analysis").innerHTML = "<p>Không có đủ dữ liệu.</p>";
+      return;
+    }
+
+    const labels = firstMonthRecords.map((item) => String(Number(item.date.slice(-2))));
+    const monthValuesByKey = Object.fromEntries(
+      Object.entries(monthRecordsByKey).map(([key, records]) => [key, records.map((item) => item.value)])
+    );
+
+    renderLineChart("compare", "compareChart", labels, Object.entries(dashboardData.config.sources).map(([key, config]) =>
+      lineDataset(config.label, monthValuesByKey[key], { color: config.color, width: config.width })
+    ), "Chỉ số");
+
+    Object.entries(dashboardData.config.sources).forEach(([key, config]) => {
+      const values = monthValuesByKey[key];
+      const monthlyAverage = average(values);
+      renderLineChart(key, `${key}Chart`, labels, [
+        lineDataset(config.label, values, { color: config.color, width: config.width }),
+        lineDataset(`Trung bình ${monthlyAverage.toFixed(1)}`, Array(labels.length).fill(monthlyAverage), { color: "#999", dash: [5, 5], points: false, width: 1.5 }),
+      ], `Chỉ số ${config.label}`);
+    });
+
+    const primaryKey = dashboardData.config.primaryKey;
+    const targetKey = dashboardData.config.lagTargetKey;
+    const primaryChanges = calculateChanges(dashboardData.series[primaryKey]);
+    const targetChanges = calculateChanges(dashboardData.series[targetKey]);
+    const results = [-2, -1, 0, 1, 2].map((lag) => analyzeLag(monthRecordsByKey[primaryKey], primaryChanges, targetChanges, lag));
+    const bestLag = [...results].sort((a, b) =>
+      b.samePercent - a.samePercent ||
+      b.directional - a.directional ||
+      Math.abs(a.lag) - Math.abs(b.lag) ||
+      a.lag - b.lag
+    )[0];
+
+    renderSummary(monthValuesByKey, bestLag, firstMonthRecords.length);
+    renderAnalysis(results, bestLag, year, month);
+    document.getElementById("rangeNote").textContent = `${MONTH_NAMES[month - 1]} ${year} · ${firstMonthRecords[0].date} đến ${firstMonthRecords[firstMonthRecords.length - 1].date}`;
+  } catch (error) {
+    showRuntimeError(error);
+    console.error(error);
   }
-
-  const labels = firstMonthRecords.map((item) => String(Number(item.date.slice(-2))));
-  const monthValuesByKey = Object.fromEntries(
-    Object.entries(monthRecordsByKey).map(([key, records]) => [key, records.map((item) => item.value)])
-  );
-
-  renderLineChart("compare", "compareChart", labels, Object.entries(dashboardData.config.sources).map(([key, config]) =>
-    lineDataset(config.label, monthValuesByKey[key], { color: config.color, width: config.width })
-  ), "Chỉ số");
-
-  Object.entries(dashboardData.config.sources).forEach(([key, config]) => {
-    const values = monthValuesByKey[key];
-    const monthlyAverage = average(values);
-    renderLineChart(key, `${key}Chart`, labels, [
-      lineDataset(config.label, values, { color: config.color, width: config.width }),
-      lineDataset(`Trung bình ${monthlyAverage.toFixed(1)}`, Array(labels.length).fill(monthlyAverage), { color: "#999", dash: [5, 5], points: false, width: 1.5 }),
-    ], `Chỉ số ${config.label}`);
-  });
-
-  renderTransitChart(getMonthRecords(dashboardData.transit, year, month), year, month);
-
-  const primaryKey = dashboardData.config.primaryKey;
-  const targetKey = dashboardData.config.lagTargetKey;
-  const primaryChanges = calculateChanges(dashboardData.series[primaryKey]);
-  const targetChanges = calculateChanges(dashboardData.series[targetKey]);
-  const results = [-2, -1, 0, 1, 2].map((lag) => analyzeLag(monthRecordsByKey[primaryKey], primaryChanges, targetChanges, lag));
-  const bestLag = [...results].sort((a, b) =>
-    b.samePercent - a.samePercent ||
-    b.directional - a.directional ||
-    Math.abs(a.lag) - Math.abs(b.lag) ||
-    a.lag - b.lag
-  )[0];
-
-  renderSummary(monthValuesByKey, bestLag, firstMonthRecords.length);
-  renderAnalysis(results, bestLag, year, month);
-  document.getElementById("rangeNote").textContent = `${MONTH_NAMES[month - 1]} ${year} · ${firstMonthRecords[0].date} đến ${firstMonthRecords[firstMonthRecords.length - 1].date}`;
 }
 
 function defaultMonthForYear(year) {
@@ -496,6 +575,7 @@ function defaultMonthForYear(year) {
 async function initialize() {
   try {
     dashboardData = await loadDashboardData();
+    await ensureChartJs();
     const yearSelect = document.getElementById("year");
     yearSelect.innerHTML = dashboardData.meta.years.map((year) => `<option value="${year}">${year}</option>`).join("");
     const preferredYear = dashboardData.meta.years.includes(2026) ? 2026 : dashboardData.meta.years.at(-1);
@@ -510,7 +590,7 @@ async function initialize() {
       `Dữ liệu từ ngày · ${dashboardData.meta.firstDate} đến ${dashboardData.meta.lastDate} · ${Object.values(dashboardData.config.sources).map((item) => item.file).join(" · ")} · btc_transit_scores_updated.xlsx`;
     loadData();
   } catch (error) {
-    document.getElementById("analysis").innerHTML = `<p>Không tải được data: ${error.message}</p>`;
+    showRuntimeError(error);
     console.error(error);
   }
 }
