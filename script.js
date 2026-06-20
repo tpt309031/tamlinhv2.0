@@ -2,8 +2,8 @@ let charts = {};
 let dashboardData = null;
 
 const CHART_JS_FALLBACK_URLS = [
-  "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js",
   "https://unpkg.com/chart.js@4.4.7/dist/chart.umd.js",
+  "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js",
 ];
 
 const MONTH_NAMES = [
