@@ -137,6 +137,12 @@ async function loadDashboardData() {
     },
     primaryKey: "me",
     lagTargetKey: "btc",
+    transit: {
+      financeColor: "#f7931a",
+      lowColor: "#d94b4b",
+      midColor: "#77b7df",
+      highColor: "#9bd8a4",
+    },
   };
   const embeddedConfig = typeof DASHBOARD_DATA_CONFIG !== "undefined" ? DASHBOARD_DATA_CONFIG : null;
   const embeddedData = typeof DASHBOARD_DATA !== "undefined" ? DASHBOARD_DATA : null;
@@ -154,6 +160,7 @@ async function loadDashboardData() {
     return {
       config,
       series,
+      transit: typeof BTC_TRANSIT_DATA !== "undefined" ? BTC_TRANSIT_DATA : [],
       meta: {
         years: [...new Set(firstSeries.map((item) => Number(item.date.slice(0, 4))))],
         firstDate: firstSeries[0].date,
@@ -173,6 +180,7 @@ async function loadDashboardData() {
   return {
     config,
     series,
+    transit: typeof BTC_TRANSIT_DATA !== "undefined" ? BTC_TRANSIT_DATA : [],
     meta: {
       years: [...new Set(firstSeries.map((item) => Number(item.date.slice(0, 4))))],
       firstDate: firstSeries[0].date,
@@ -247,6 +255,41 @@ function chartOptions(yTitle) {
   };
 }
 
+function transitChartOptions() {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { maxRotation: 0, autoSkipPadding: 12 },
+      },
+      y: {
+        beginAtZero: true,
+        suggestedMax: 100,
+        title: { display: true, text: "AdjFinance / AdjVolatility" },
+        grid: { color: "#e5e5e5" },
+      },
+    },
+    plugins: {
+      legend: { labels: { color: "#333", usePointStyle: true } },
+      tooltip: {
+        callbacks: {
+          afterBody(items) {
+            const item = items[0];
+            const value = item?.raw;
+            if (item?.dataset?.label !== "AdjVolatility" || value === undefined) return "";
+            if (value < 36) return "Vùng thấp: < 36";
+            if (value > 66) return "Vùng cao: > 66";
+            return "Vùng giữa: 36-66";
+          },
+        },
+      },
+    },
+  };
+}
+
 function lineDataset(label, values, options = {}) {
   return {
     label,
@@ -261,12 +304,73 @@ function lineDataset(label, values, options = {}) {
   };
 }
 
+function volatilityColor(value) {
+  const transitConfig = dashboardData?.config?.transit || {};
+  if (value < 36) return transitConfig.lowColor || "#d94b4b";
+  if (value > 66) return transitConfig.highColor || "#9bd8a4";
+  return transitConfig.midColor || "#77b7df";
+}
+
 function renderLineChart(name, canvasId, labels, datasets, yTitle) {
   destroyChart(name);
   charts[name] = new Chart(document.getElementById(canvasId), {
     type: "line",
     data: { labels, datasets },
     options: chartOptions(yTitle),
+  });
+}
+
+function renderTransitChart(records, year, month) {
+  const note = document.getElementById("transitNote");
+  const labels = records.map((item) => String(Number(item.date.slice(-2))));
+  const financeValues = records.map((item) => item.adjFinance);
+  const volatilityValues = records.map((item) => item.adjVolatility);
+
+  destroyChart("transit");
+  if (!records.length) {
+    note.textContent = `Không có dữ liệu AdjFinance/AdjVolatility cho ${MONTH_NAMES[month - 1].toLowerCase()} ${year}. Dữ liệu Excel hiện có từ 2026-06-20 đến 2026-12-31.`;
+    charts.transit = new Chart(document.getElementById("transitChart"), {
+      type: "bar",
+      data: { labels: [], datasets: [] },
+      options: transitChartOptions(),
+    });
+    return;
+  }
+
+  const avgFinance = average(financeValues).toFixed(1);
+  const avgVolatility = average(volatilityValues).toFixed(1);
+  note.textContent = `${records[0].date} đến ${records[records.length - 1].date} · TB AdjFinance ${avgFinance} · TB AdjVolatility ${avgVolatility}. Bar đỏ <36, xanh da trời 36-66, xanh lá nhẹ >66.`;
+  charts.transit = new Chart(document.getElementById("transitChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          type: "bar",
+          label: "AdjVolatility",
+          data: volatilityValues,
+          backgroundColor: volatilityValues.map(volatilityColor),
+          borderColor: volatilityValues.map(volatilityColor),
+          borderWidth: 1,
+          borderRadius: 3,
+          order: 2,
+        },
+        {
+          type: "line",
+          label: "AdjFinance",
+          data: financeValues,
+          borderColor: dashboardData.config.transit?.financeColor || dashboardData.config.sources.btc.color,
+          backgroundColor: "transparent",
+          borderWidth: 3,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.25,
+          fill: false,
+          order: 1,
+        },
+      ],
+    },
+    options: transitChartOptions(),
   });
 }
 
@@ -329,12 +433,16 @@ function renderAnalysis(results, bestLag, year, month) {
   `;
 }
 
+function getMonthRecords(records, year, month) {
+  const monthPrefix = `${year}-${String(month).padStart(2, "0")}-`;
+  return records.filter((item) => item.date.startsWith(monthPrefix));
+}
+
 function loadData() {
   const year = Number(document.getElementById("year").value);
   const month = Number(document.getElementById("month").value);
-  const monthPrefix = `${year}-${String(month).padStart(2, "0")}-`;
   const monthRecordsByKey = Object.fromEntries(
-    Object.entries(dashboardData.series).map(([key, records]) => [key, records.filter((item) => item.date.startsWith(monthPrefix))])
+    Object.entries(dashboardData.series).map(([key, records]) => [key, getMonthRecords(records, year, month)])
   );
   const firstMonthRecords = Object.values(monthRecordsByKey)[0];
 
@@ -361,6 +469,8 @@ function loadData() {
     ], `Chỉ số ${config.label}`);
   });
 
+  renderTransitChart(getMonthRecords(dashboardData.transit, year, month), year, month);
+
   const primaryKey = dashboardData.config.primaryKey;
   const targetKey = dashboardData.config.lagTargetKey;
   const primaryChanges = calculateChanges(dashboardData.series[primaryKey]);
@@ -378,6 +488,11 @@ function loadData() {
   document.getElementById("rangeNote").textContent = `${MONTH_NAMES[month - 1]} ${year} · ${firstMonthRecords[0].date} đến ${firstMonthRecords[firstMonthRecords.length - 1].date}`;
 }
 
+function defaultMonthForYear(year) {
+  const transitRecord = dashboardData.transit.find((item) => Number(item.date.slice(0, 4)) === year);
+  return transitRecord ? String(Number(transitRecord.date.slice(5, 7))) : "1";
+}
+
 async function initialize() {
   try {
     dashboardData = await loadDashboardData();
@@ -385,11 +500,14 @@ async function initialize() {
     yearSelect.innerHTML = dashboardData.meta.years.map((year) => `<option value="${year}">${year}</option>`).join("");
     const preferredYear = dashboardData.meta.years.includes(2026) ? 2026 : dashboardData.meta.years.at(-1);
     yearSelect.value = String(preferredYear);
-    document.getElementById("month").value = "1";
-    yearSelect.addEventListener("change", loadData);
+    document.getElementById("month").value = defaultMonthForYear(preferredYear);
+    yearSelect.addEventListener("change", () => {
+      document.getElementById("month").value = defaultMonthForYear(Number(yearSelect.value));
+      loadData();
+    });
     document.getElementById("month").addEventListener("change", loadData);
     document.getElementById("dataSource").textContent =
-      `Dữ liệu từ ngày · ${dashboardData.meta.firstDate} đến ${dashboardData.meta.lastDate} · ${Object.values(dashboardData.config.sources).map((item) => item.file).join(" · ")}`;
+      `Dữ liệu từ ngày · ${dashboardData.meta.firstDate} đến ${dashboardData.meta.lastDate} · ${Object.values(dashboardData.config.sources).map((item) => item.file).join(" · ")} · btc_transit_scores_updated.xlsx`;
     loadData();
   } catch (error) {
     document.getElementById("analysis").innerHTML = `<p>Không tải được data: ${error.message}</p>`;
